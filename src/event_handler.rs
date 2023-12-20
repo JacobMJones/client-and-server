@@ -15,8 +15,8 @@ impl EventHandler {
                 match axis {
                     Axis::LeftStickX => player.axis_left.0 = value,
                     Axis::LeftStickY => player.axis_left.1 = -value,
-                    Axis::RightStickX => player.axis_right.0 = value,
-                    Axis::RightStickY => player.axis_right.1 = -value,
+                    // Axis::RightStickX => player.axis_right.0 = value,
+                    // Axis::RightStickY => player.axis_right.1 = -value,
                     _ => (),
                 }
             }

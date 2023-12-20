@@ -1,10 +1,6 @@
 mod player;
 mod main_state;
-mod collectible;
-mod smoke_effect;
-mod proximity_and_collision_handler;
 mod event_handler;
-mod collidable;
 use ggez::{conf, event, ContextBuilder};
 use main_state::MainState;
 

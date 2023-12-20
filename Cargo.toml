@@ -13,3 +13,9 @@ mint = "0.5"
 rand = "0.8"  # or the version you are using
 rand_distr = "0.4"
 noise = "0.7"
+tokio = { version = "1", features = ["full"] }
+mini-redis = "0.4"
+bytes = "1"
+crossterm = "0.27.0"
+console = "0.15.7"
+local-ip-address = "0.5.6"
