@@ -4,6 +4,7 @@ use crate::other_player::OtherPlayer;
 use crate::player::Player;
 use ggez::{event, graphics, timer, Context, GameResult};
 use gilrs::Gilrs;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
@@ -14,10 +15,13 @@ pub struct MainState {
     last_get_time: Instant,
     get_interval: Duration,
     rt_handle: tokio::runtime::Handle,
-    other_player: Arc<Mutex<OtherPlayer>>,
+    other_players: Arc<Mutex<HashMap<String, OtherPlayer>>>,
+    focused: bool,
+    client_id: String,
 }
 
 impl MainState {
+    
     pub fn new(
         ctx: &mut ggez::Context,
         network_client: NetworkClient,
@@ -27,20 +31,34 @@ impl MainState {
         let event_handler = EventHandler::new(gilrs);
 
         let player = Player::new();
-        let other_player = Arc::new(Mutex::new(OtherPlayer::new()));
+        let client_id = network_client.client_id.clone(); 
         Ok(MainState {
             event_handler,
             player,
             network_client: Arc::new(Mutex::new(network_client)),
             last_get_time: Instant::now(),
-            get_interval: Duration::from_millis(500),
+            get_interval: Duration::from_millis(50),
             rt_handle,
-            other_player,
+            other_players: Arc::new(Mutex::new(HashMap::new())),
+            focused:true,
+            client_id
         })
     }
 }
 
 impl event::EventHandler<ggez::GameError> for MainState {
+    fn focus_event(&mut self, _ctx: &mut Context, gained_focus: bool) {
+        if gained_focus {
+            // The window gained focus
+            self.focused = true;
+        } else {
+            // The window lost focus
+            self.focused = false;
+        }
+
+
+
+    }
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         // Time elapsed since the last frame
         let dt = timer::delta(ctx).as_secs_f32();
@@ -48,59 +66,75 @@ impl event::EventHandler<ggez::GameError> for MainState {
 
         // Process events
         // println!("Processing events...");
-        self.event_handler.process_events(&mut self.player);
+        if self.focused {
+            self.event_handler.process_events(&mut self.player);
+        } else {
+            {};
+        }
+        
 
         // Update player
-        // println!("Updating player...");
         self.player.update(dt);
 
-        // Clone network_client for async task
-        // Clone the `rt_handle` before the async block.
-        let rt_handle = self.rt_handle.clone();
 
-        // If you need to use `other_player` within the async block, clone its Arc.
-        let other_player = Arc::clone(&self.other_player);
+
+        let other_players_clone = Arc::clone(&self.other_players);
         let network_client = Arc::clone(&self.network_client);
         let player_position = self.player.position;
-        println!("Player position to be sent: {:?}", player_position);
+
+        //  println!("Player position to be sent: {:?}", player_position);
 
         // Spawn async task for setting player position
         tokio::spawn(async move {
             // println!("Starting async task for setting player position...");
             let mut client = network_client.lock().await;
+            
             //  println!("Network client locked for setting position...");
             client.set_player_position(player_position).await;
             //  println!("Player position sent to server.");
         });
 
         // Checking if it's time to fetch updates
+        // Checking if it's time to fetch updates
         if Instant::now() - self.last_get_time > self.get_interval {
-            println!("Time to fetch updates from server.");
             self.last_get_time = Instant::now();
-
+        
             // Clone network_client for another async task
             let network_client = Arc::clone(&self.network_client);
-
+        
+            let client_id = self.client_id.clone();
+            
             // Spawn async task for getting player updates
             self.rt_handle.spawn(async move {
-                println!("Starting async task for getting player updates...");
                 let mut client = network_client.lock().await;
-                println!("Network client locked for getting updates...");
-                let update_result = client.get_player_update("PUD").await;
-                println!("Result of get_player_update: {:?}", update_result);
-                match update_result {
-                    Ok((ip, x, y)) => {
-                        // Destructuring the tuple directly
-                        println!("Player update received: IP: {}, X: {}, Y: {}", ip, x, y);
-                        let mut op = other_player.lock().await; // Lock the mutex asynchronously and await the result
-                        op.update_from_server(x, y);
+                match client.get_server_update("PUD").await {
+                    Ok(updates) => {
+                        println!("client ID {}", client_id);
+            
+                        // Lock the other_players mutex to safely update it
+                        let mut other_players = other_players_clone.lock().await;
+            
+                        // Iterate through the updates and modify other_players accordingly
+                        for (id, (x, y)) in updates {
+                            if client_id == id {
+                                // Skip this iteration if the id matches the client_id
+                                println!("Skipping update for self");
+                                continue;
+                            }
+            
+                            // Update or insert the new player data into other_players
+                            other_players.entry(id).or_insert_with(|| OtherPlayer::new()).update_position(x, y);
+                            // Assuming OtherPlayer has a method like update_position(i32, i32)
+                        }
+            
+                        // println!("Updated other_players: {:?}", other_players);
                     }
-                    Err(e) => eprintln!("Failed to get player update: {}", e),
+                    Err(e) => {
+                        // Handle the error, e.g., by logging it
+                        eprintln!("Failed to get player update: {}", e);
+                    }
                 }
             });
-        } else {
-            {};
-            // println!("Not time to fetch updates yet.");
         }
 
         // End of update
@@ -108,16 +142,32 @@ impl event::EventHandler<ggez::GameError> for MainState {
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::Color::from_rgb(0, 0, 0));
+    
+        // Draw the main player (assuming this works and is visible)
         self.player.draw(ctx)?;
-        match self.other_player.try_lock() {
-            Ok(guard) => {
-                guard.draw(ctx)?;
-            },
-            Err(_e) => {
-            }
-        }
-        graphics::present(ctx)
+    
+        // Assuming try_lock is successful and other_players contains correct data
+        if let Ok(other_players) = self.other_players.try_lock() {
+            for other_player in other_players.values() {
+
+                let circle = graphics::Mesh::new_circle(
+                    ctx,
+                    graphics::DrawMode::fill(),
+                    other_player.position,
+                    100.0, // Ensure this is a sufficiently large radius
+                    1.0, // Circle smoothness
+                    graphics::Color::from_rgba(255, 0, 0, 255), // Ensure alpha is 255 for full opacity
+                )?;
+    
+                graphics::draw(ctx, &circle, (other_player.position,))?;
+           }
+       }
+    
+        graphics::present(ctx)?;
+        Ok(())
     }
+    
+    
 }

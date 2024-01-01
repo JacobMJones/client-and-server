@@ -7,8 +7,8 @@ use ggez::{conf, event, ContextBuilder};
 use main_state::MainState;
 use tokio::runtime::Runtime;
 use crate::network_client::NetworkClient;
-
-
+pub const SCREEN_WIDTH: f32 = 1000.0;
+pub const SCREEN_HEIGHT: f32 = 1000.0;
 fn main() -> ggez::GameResult {
     // Create a new Tokio runtime
     let rt = Runtime::new().unwrap();
@@ -24,7 +24,7 @@ fn main() -> ggez::GameResult {
     // Build the ggez context and event loop
     let (mut ctx, event_loop) = ContextBuilder::new("top_down_shooter", "author")
         .window_setup(conf::WindowSetup::default().title("Top Down Shooter"))
-        .window_mode(conf::WindowMode::default().dimensions(2000.0, 2000.0))
+        .window_mode(conf::WindowMode::default().dimensions(SCREEN_WIDTH, SCREEN_HEIGHT))
         .build()?;
 
     // Create the MainState, passing the network_client and runtime handle
