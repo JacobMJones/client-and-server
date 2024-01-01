@@ -10,8 +10,8 @@ pub struct OtherPlayer {
 impl OtherPlayer {
     pub fn new() -> Self {
         OtherPlayer {
-            position: mint::Point2 { x: 0.0, y: 0.0 }, // Initial position can be (0,0) or any default value
-            speed: 0.0, // Initial speed can be set to 0
+            position: mint::Point2 { x: 0.0, y: 0.0 }, // Initial position using players start pos for now
+            speed: 0.0, 
         }
     }
 
@@ -20,7 +20,8 @@ impl OtherPlayer {
  
         self.position.x = x as f32;
         self.position.y = y as f32;
-        // You might want to adjust speed based on the difference in position or other server data
+        //adjust speed based on the difference in position or other server data?? is this why position is off
+        
     }
 
     pub fn draw(&self, ctx: &mut Context) -> GameResult<()> {
@@ -30,8 +31,8 @@ impl OtherPlayer {
             ctx,
             graphics::DrawMode::fill(),
             mint::Point2 { x: 0.0, y: 0.0 },
-            600.0, // Assuming the same radius as Player
-            0.1, // Smoothness
+            100.0, 
+            0.1, 
             graphics::Color::from_rgb(255, 0, 0), // Different color for distinction, here red
         )?;
 

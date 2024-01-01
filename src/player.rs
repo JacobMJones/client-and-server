@@ -3,8 +3,8 @@ use mint;
 
 pub const MOVEMENT_SPEED: f32 = 1000.0;
 pub const CIRCLE_RADIUS: f32 = 45.0;
-pub const PLAYER_START_X_POS: f32 = 500.0;
-pub const PLAYER_START_Y_POS: f32 = 500.0;
+pub const PLAYER_START_X_POS: f32 = 0.0;
+pub const PLAYER_START_Y_POS: f32 = 0.0;
 
 pub struct Player {
     pub position: mint::Point2<f32>,

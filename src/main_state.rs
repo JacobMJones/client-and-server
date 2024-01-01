@@ -62,46 +62,38 @@ impl event::EventHandler<ggez::GameError> for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         // Time elapsed since the last frame
         let dt = timer::delta(ctx).as_secs_f32();
-        // println!("Update called with delta time: {}", dt);
 
-        // Process events
-        // println!("Processing events...");
+
+        // Process events if window is in focus
         if self.focused {
             self.event_handler.process_events(&mut self.player);
-        } else {
-            {};
-        }
+        } 
         
 
         // Update player
         self.player.update(dt);
 
 
-
+        //make clones
         let other_players_clone = Arc::clone(&self.other_players);
         let network_client = Arc::clone(&self.network_client);
         let player_position = self.player.position;
 
-        //  println!("Player position to be sent: {:?}", player_position);
+      
 
         // Spawn async task for setting player position
         tokio::spawn(async move {
-            // println!("Starting async task for setting player position...");
             let mut client = network_client.lock().await;
-            
-            //  println!("Network client locked for setting position...");
             client.set_player_position(player_position).await;
-            //  println!("Player position sent to server.");
+
         });
 
-        // Checking if it's time to fetch updates
         // Checking if it's time to fetch updates
         if Instant::now() - self.last_get_time > self.get_interval {
             self.last_get_time = Instant::now();
         
             // Clone network_client for another async task
             let network_client = Arc::clone(&self.network_client);
-        
             let client_id = self.client_id.clone();
             
             // Spawn async task for getting player updates
@@ -111,54 +103,43 @@ impl event::EventHandler<ggez::GameError> for MainState {
                     Ok(updates) => {
                         println!("client ID {}", client_id);
             
-                        // Lock the other_players mutex to safely update it
                         let mut other_players = other_players_clone.lock().await;
             
-                        // Iterate through the updates and modify other_players accordingly
+                        // modify other_players
                         for (id, (x, y)) in updates {
+                            
+                            //skips player data from being added to other_players
                             if client_id == id {
-                                // Skip this iteration if the id matches the client_id
-                                println!("Skipping update for self");
                                 continue;
                             }
-            
-                            // Update or insert the new player data into other_players
                             other_players.entry(id).or_insert_with(|| OtherPlayer::new()).update_position(x, y);
-                            // Assuming OtherPlayer has a method like update_position(i32, i32)
                         }
-            
-                        // println!("Updated other_players: {:?}", other_players);
                     }
                     Err(e) => {
-                        // Handle the error, e.g., by logging it
                         eprintln!("Failed to get player update: {}", e);
                     }
                 }
             });
         }
-
-        // End of update
-        // println!("Update completed.");
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::Color::from_rgb(0, 0, 0));
     
-        // Draw the main player (assuming this works and is visible)
+        //draw player
         self.player.draw(ctx)?;
     
-        // Assuming try_lock is successful and other_players contains correct data
+        //draw other players
         if let Ok(other_players) = self.other_players.try_lock() {
             for other_player in other_players.values() {
-
                 let circle = graphics::Mesh::new_circle(
                     ctx,
                     graphics::DrawMode::fill(),
                     other_player.position,
-                    100.0, // Ensure this is a sufficiently large radius
-                    1.0, // Circle smoothness
-                    graphics::Color::from_rgba(255, 0, 0, 255), // Ensure alpha is 255 for full opacity
+                    45.0, 
+                    0.1, 
+                    graphics::Color::from_rgba(255, 0, 0, 255), 
                 )?;
     
                 graphics::draw(ctx, &circle, (other_player.position,))?;
