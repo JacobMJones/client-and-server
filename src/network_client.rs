@@ -1,6 +1,5 @@
 use bytes::Bytes;
 use ggez::mint::Point2;
-// use local_ip_address::local_ip;
 use mini_redis::client;
 use mini_redis::client::Client;
 use std::sync::Arc;
@@ -15,7 +14,6 @@ pub struct NetworkClient {
 
 impl NetworkClient {
     pub async fn initialize_and_connect(server_address: &str) -> Self {
-        // println!("Initializing NetworkClient...");
         let client = NetworkClient::initialize(server_address);
         match client.connect().await {
             Ok(()) => println!("Successfully connected to the server."),
@@ -25,9 +23,8 @@ impl NetworkClient {
     }
 
     pub fn initialize(server_address: &str) -> Self {
-        // println!("Creating NetworkClient instance...");
+
         let client_id = Uuid::new_v4().to_string();
-        println!("client id {}", client_id);
         NetworkClient {
             server_address: server_address.to_string(),
             client_id,
@@ -48,12 +45,13 @@ impl NetworkClient {
         Ok(())
     }
 
+    // SET
     pub async fn set_player_position(&mut self, position: Point2<f32>) {
         let key = format!("{}", self.client_id);
         let position_string = format!("{},{}", position.x, position.y);
         let position_bytes = Bytes::from(position_string.clone()); 
         
-      //  println!("Sending to server: key = '{}', position = '{}'", key, position_string);
+
         
         let mut client_guard = self.client.lock().await;
         if let Some(client) = client_guard.as_mut() {
@@ -61,11 +59,9 @@ impl NetworkClient {
                 Ok(_) => {},
                 Err(e) => eprintln!("Failed to set player position: {:?}", e),
             }
-        } else {
-          //  eprintln!("Client not connected, unable to set player position.");
-        }
+        } 
     }
-    // Updated get_player_update method
+    // GET
     pub async fn get_server_update(&mut self, command: &str) -> Result<HashMap<String, (i32, i32)>, String> {
         let mut client_guard = self.client.lock().await;
     
@@ -75,19 +71,15 @@ impl NetworkClient {
                     let response_str = String::from_utf8(response.to_vec())
                         .map_err(|e| format!("Invalid UTF-8 sequence: {}", e))?;
     
-                    // Each player's data is separated by '|', split the string
+                    // Each player's data is separated by '|'
                     let players_data: Vec<&str> = response_str.split('|').collect();
                     let mut positions = HashMap::new();
     
                     for data in players_data {
-                    
                         let parts: Vec<&str> = data.split(':').collect();
-                    
                         if parts.len() == 2 {
                             let player_id = parts[0];
                             let coords: Vec<&str> = parts[1].split(',').collect();
-                           
-                    
                             if coords.len() == 2 {
                                 // Clean and parse X coordinate
                                 let x_clean = coords[0].trim().replace("(", "");

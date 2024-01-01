@@ -15,18 +15,12 @@ impl OtherPlayer {
         }
     }
 
-    // Update the position based on server messages
     pub fn update_position(&mut self, x: i32, y: i32) {
- 
         self.position.x = x as f32;
         self.position.y = y as f32;
-        //adjust speed based on the difference in position or other server data?? is this why position is off
-        
     }
 
     pub fn draw(&self, ctx: &mut Context) -> GameResult<()> {
-
- 
         let circle = graphics::Mesh::new_circle(
             ctx,
             graphics::DrawMode::fill(),
